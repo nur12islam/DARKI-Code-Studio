@@ -158,6 +158,30 @@ app.whenReady().then(async () => {
   ipcMain.handle('project:open', async () => { const r = await dialog.showOpenDialog({properties:['openDirectory','createDirectory']}); return r.canceled ? null : r.filePaths[0]; });
   ipcMain.handle('fs:list', async (_e, root: string) => { assertProject(root); return walk(root); });
   ipcMain.handle('fs:read', async (_e, root: string, rel: string) => readProjectFile(root, rel));
+  ipcMain.handle('fs:create', async (_e, root:string, rel:string, type:'file'|'directory') => {
+    assertProject(root); const target=safeTarget(root,rel);
+    if (!rel || rel.split(/[\\\\/]/).some(part=>part==='..')) throw new Error('Invalid project-relative path.');
+    if (type==='directory') {
+      if (!await approve({title:'Create folder?',detail:rel,kind:'write'})) throw new Error('Creation denied.');
+      await fs.mkdir(target,{recursive:false}); return;
+    }
+    if (!await approve({title:'Create file?',detail:rel,kind:'write'})) throw new Error('Creation denied.');
+    await fs.mkdir(path.dirname(target),{recursive:true}); const handle=await fs.open(target,'wx'); await handle.close();
+  });
+  ipcMain.handle('fs:delete', async (_e,root:string,rel:string) => {
+    assertProject(root); const target=safeTarget(root,rel); const stat=await fs.lstat(target);
+    if(stat.isSymbolicLink()) throw new Error('Refusing to delete symbolic links.');
+    if(!await approve({title:'Delete project item?',detail:rel+'\\nThis cannot be undone by the app.',kind:'delete'})) throw new Error('Deletion denied.');
+    if(stat.isDirectory()) await fs.rm(target,{recursive:true,force:false}); else await fs.unlink(target);
+  });
+  ipcMain.handle('fs:rename', async (_e,root:string,from:string,to:string) => {
+    assertProject(root); const source=safeTarget(root,from), target=safeTarget(root,to);
+    if(!to || to.split(/[\\\\/]/).some(part=>part==='..')) throw new Error('Invalid destination path.');
+    const stat=await fs.lstat(source); if(stat.isSymbolicLink()) throw new Error('Refusing to rename symbolic links.');
+    if(!await approve({title:'Rename project item?',detail:from+'  →  '+to,kind:'write'})) throw new Error('Rename denied.');
+    await fs.rename(source,target);
+  });
+
   ipcMain.handle('fs:write', async (_e, root: string, rel: string, content: string) => {
     const existing = await fs.readFile(safeTarget(root, rel), 'utf8').catch(()=>'');
     if (!await approve({title:'Save file?',detail:rel,kind:'write',diff:'--- CURRENT ---\n'+existing.slice(0,4000)+'\n--- NEW ---\n'+String(content).slice(0,6000)})) throw new Error('File save denied.');
