@@ -218,14 +218,14 @@ app.whenReady().then(async () => {
     const r = await fetch('https://openrouter.ai/api/v1/models', {headers:key?{Authorization:'Bearer '+key}:{}});
     if (!r.ok) throw new Error('OpenRouter models request failed: '+r.status);
     const d = await r.json() as {data?:Array<{id:string;name?:string;context_length?:number}>};
-    return (d.data||[]).map(m=>({id:m.id,name:m.name||m.id,context_length:m.context_length}));
+    return (d.data||[]).map(m=>({id:m.id,name:m.name||m.id,context_length:m.context_length,isFree:m.id.endsWith(':free')||(Number(m.pricing?.prompt)===0&&Number(m.pricing?.completion)===0)}));
   });
-  ipcMain.handle('openrouter:chat', async (_e, req: {root:string; requestId?:string; model:string; messages:Array<{role:string;content:string}>; temperature?:number}) => {
+  ipcMain.handle('openrouter:chat', async (_e, req: {root:string; requestId?:string; model:string; messages:Array<{role:string;content:string}>; temperature?:number; autoFallback?:boolean; fallbackModels?:string[]}) => {
     const key=settings.openrouterKey; if(!key) throw new Error('Add your OpenRouter API key in Settings first.');
     assertProject(req.root);
     const messages: Array<Record<string, unknown>> = req.messages.map(m=>({role:m.role,content:m.content}));
     const call = async () => {
-      const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'},body:JSON.stringify({model:req.model,messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto',stream:true})});
+      const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'},body:JSON.stringify({model:req.model,...(req.autoFallback!==false&&req.fallbackModels?.length?{models:[...new Set(req.fallbackModels.filter(m=>m&&m!==req.model))]}:{}),messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto',stream:true})});
       if(!r.ok) throw new Error('OpenRouter request failed ('+r.status+'): '+(await r.text()).slice(0,400));
       if(!r.body) throw new Error('Streaming response body unavailable.');
       const reader=r.body.getReader(); const decoder=new TextDecoder(); let buffer=''; let content=''; let finishReason:string|undefined;
@@ -278,7 +278,7 @@ app.whenReady().then(async () => {
     return 'I reached the maximum number of tool steps for this turn. Please review the files and continue with a focused follow-up.';
   });
   ipcMain.handle('settings:save', async (_e,key:string,value:string) => {
-    if(!['openrouterKey','githubToken','defaultModel','approvalMode'].includes(key)) throw new Error('Unsupported setting.');
+    if(!['openrouterKey','githubToken','defaultModel','approvalMode','autoFallback','fallbackModels'].includes(key)) throw new Error('Unsupported setting.');
     settings[key]=value; await persistSettings();
   });
   ipcMain.handle('settings:read', async (_e,key:string) => ['openrouterKey','githubToken'].includes(key)?null:(settings[key]||null));
