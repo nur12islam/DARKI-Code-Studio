@@ -1,55 +1,63 @@
 # DARKI Code Studio
 
-A Windows-first desktop workspace for coding with models available through [OpenRouter](https://openrouter.ai/). Built with Electron, React, TypeScript, Vite, Tailwind CSS, Monaco Editor, Zustand and simple-git.
+A Windows-first desktop AI coding workspace built with Electron, React, TypeScript, Vite, Tailwind CSS, Monaco Editor, Zustand, simple-git and OpenRouter.
 
-## Current implementation status
+## Current implementation
 
-This repository contains the first runnable UI and secure Electron foundation. It currently includes folder selection, a project file tree, Monaco editing and saving, OpenRouter model discovery and chat requests, encrypted settings where Electron safeStorage is available, basic Git status/push, a preview pane, and a command runner with an explicit confirmation.
+- Electron main process with context isolation, disabled renderer Node integration and a typed preload bridge.
+- Project folder selection, file explorer, create/rename/delete file controls, Monaco editing and Ctrl+S.
+- OpenRouter model discovery and chat completions with tool/function calling.
+- Agent tools: list/read/write/delete project files, run a PowerShell command, inspect Git status, commit, push and suggest a preview URL.
+- Allow/Deny approval cards for agent file changes, deletions, commands, commits and pushes. Approval requests time out as denied.
+- Local settings and encrypted API key storage via Electron safeStorage when available.
+- Basic Git branch/status, preview panel and terminal/log panel.
+- GitHub Actions workflow to build and package a Windows installer.
 
-**This is an initial scaffold, not yet the full agent described in the project brief.** Tool/function-calling loops, streamed token delivery, full file-operation approval cards and diff previews, undo snapshots, GitHub PAT login/repo creation/clone/pull/PR flows, persistent multi-session chat, automatic preview server management, and a complete test suite remain to be implemented. The approval-mode setting is currently saved as a preference; it does not yet change file-write behavior.
+This is an active early-stage project. Streaming token delivery, robust preview-server lifecycle management, persistent multi-chat sessions, GitHub PAT login/repository creation/clone/pull/PR flows, real Monaco side-by-side diff editor, undo snapshots, and comprehensive automated tests are not yet complete. GitHub Actions has been added but its first run still needs to confirm that the code compiles and packages correctly.
 
 ## Requirements
 
 - Windows 10/11
-- Node.js 20 or newer (LTS recommended)
+- Node.js 22 LTS recommended
 - Git for Windows
-- An OpenRouter API key for cloud models
+- An OpenRouter API key
 
-## Install and run
+## Run locally
 
-```powershell
-git clone https://github.com/nur12islam/DARKI-Code-Studio.git
-cd DARKI-Code-Studio
-npm install
-npm run dev
-```
+    git clone https://github.com/nur12islam/DARKI-Code-Studio.git
+    cd DARKI-Code-Studio
+    npm install
+    npm run dev
 
-Production build and Windows installer:
+## Build the Windows installer
 
-```powershell
-npm run build
-npm run dist
-```
+    npm run build
+    npm run dist
 
-The installer is written to `release/\`.
+The NSIS installer should appear in the release directory when packaging succeeds. The GitHub Actions workflow also uploads an installer artifact when the workflow succeeds.
 
 ## Configure OpenRouter
 
-1. Open **Settings** in DARKI Code Studio.
-2. Paste your key from https://openrouter.ai/settings/keys.
-3. Save settings and choose a model from the top-bar selector.
+1. Open Settings in the app.
+2. Paste your API key from the official OpenRouter key page.
+3. Save settings and choose a model from the top bar.
 
-The main process stores secrets using Electron `safeStorage` when the OS provides encryption. Never paste API keys into chat or commit them to source control. The app uses OpenRouter's models endpoint and OpenAI-compatible chat completions endpoint.
+The key is used in Electron's main process and is not returned to the renderer. Electron safeStorage encrypts secrets when OS encryption is available. If encryption is unavailable, avoid using the app on a shared Windows account and do not share the app's settings file.
 
-## Safety notes
+## Agent approval model
 
-- Electron renderer isolation is enabled; Node integration is disabled.
-- File operations validate that paths stay under the chosen project root and reject symlinks on read/write.
-- Commands run only after a confirmation dialog. Commands are powerful: inspect them before approving.
-- Git push requires confirmation and intentionally refuses to push when the worktree has uncommitted changes.
-- Only open projects you trust. This is not a security sandbox for arbitrary untrusted code.
-- Never use production credentials in test projects.
+- File writes/deletes, commands, Git commits and pushes are paused until approved, subject to the selected approval mode.
+- Denied actions return a denial result to the model.
+- Commands execute in PowerShell on Windows and can still perform dangerous operations if approved. Review them carefully.
+- File path validation blocks parent-directory traversal, but this app is not a hardened sandbox for hostile projects or untrusted dependencies. Do not open untrusted repositories or approve commands you do not understand.
 
-## Contributing
+## Roadmap
 
-Open an issue or pull request with a focused change and tests where practical. Keep secrets out of logs, renderer state, commits, and screenshots.
+- Stream model output to the chat UI.
+- Monaco diff review and one-click undo for file changes.
+- Persistent multiple chat sessions per project.
+- Manage the full GitHub workflow: token setup, clone, pull, branch operations and pull requests.
+- Start/stop project preview servers safely and display preview console errors.
+- Add end-to-end tests and validate the Windows installer on a clean machine.
+
+Contributions and focused bug reports are welcome.
