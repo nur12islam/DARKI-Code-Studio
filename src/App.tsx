@@ -82,7 +82,6 @@ export default function App() {
   }
 
   async function runGitHubAction() {
-    if(!root && ['pull','branch','switch'].includes('')) { /* project-specific actions validate root below */ }
     const action=prompt('GitHub action: login, create-repo, clone, pull, branch, switch, pr','login')?.trim().toLowerCase();
     if(!action) return;
     const args:Record<string,string>={root:root||''};
