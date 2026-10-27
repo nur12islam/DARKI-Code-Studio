@@ -217,7 +217,7 @@ app.whenReady().then(async () => {
     const key = settings.openrouterKey;
     const r = await fetch('https://openrouter.ai/api/v1/models', {headers:key?{Authorization:'Bearer '+key}:{}});
     if (!r.ok) throw new Error('OpenRouter models request failed: '+r.status);
-    const d = await r.json() as {data?:Array<{id:string;name?:string;context_length?:number}>};
+    const d = await r.json() as {data?:Array<{id:string;name?:string;context_length?:number;pricing?:{prompt?:string;completion?:string}}>};
     return (d.data||[]).map(m=>({id:m.id,name:m.name||m.id,context_length:m.context_length,isFree:m.id.endsWith(':free')||(Number(m.pricing?.prompt)===0&&Number(m.pricing?.completion)===0)}));
   });
   ipcMain.handle('openrouter:chat', async (_e, req: {root:string; requestId?:string; model:string; messages:Array<{role:string;content:string}>; temperature?:number; autoFallback?:boolean; fallbackModels?:string[]}) => {
