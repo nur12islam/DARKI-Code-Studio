@@ -257,6 +257,7 @@ app.whenReady().then(async () => {
     if(action==='login'){const user=await api('/user');return 'Connected to GitHub as '+String(user.login||'unknown')+'.';}
     if(action==='create-repo'){
       const name=args.name?.trim();if(!name)throw new Error('Repository name is required.');
+      if(!await approve({title:'Create GitHub repository?',detail:name+'\\nVisibility: '+(args.private!=='false'?'private':'public'),kind:'git'}))return 'DENIED by user.';
       const result=await api('/user/repos',{method:'POST',body:JSON.stringify({name,private:args.private!=='false',auto_init:true})});
       return 'Created repository: '+String(result.html_url||result.full_name);
     }
