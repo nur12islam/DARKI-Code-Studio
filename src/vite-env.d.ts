@@ -1,5 +1,5 @@
 type StudioTreeEntry = {name:string;path:string;type:'file'|'directory'};
-type StudioChatRequest = {root:string;requestId:string;model:string;messages:Array<{role:'system'|'user'|'assistant';content:string}>;temperature?:number};
+type StudioChatRequest = {root:string;requestId:string;model:string;messages:Array<{role:'system'|'user'|'assistant';content:string}>;temperature?:number;autoFallback?:boolean;fallbackModels?:string[]};
 declare global {
  interface Window {
   studio:{
@@ -10,7 +10,7 @@ declare global {
    createItem(root:string,path:string,type:'file'|'directory'):Promise<void>;
    deleteItem(root:string,path:string):Promise<void>;
    renameItem(root:string,from:string,to:string):Promise<void>;
-   models():Promise<Array<{id:string;name:string;context_length?:number}>>;
+   models():Promise<Array<{id:string;name:string;context_length?:number;isFree?:boolean}>>;
    chat(request:StudioChatRequest):Promise<string>;
    onChatChunk(callback:(payload:{requestId:string;chunk:string})=>void):()=>void;
    githubAction(action:string,args:Record<string,string>):Promise<string>;
