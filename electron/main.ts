@@ -17,7 +17,7 @@ async function loadSettings() {
     for (const [key, value] of Object.entries(raw)) {
       if (key.endsWith('Encrypted') && safeStorage.isEncryptionAvailable()) {
         try { settings[key.replace('Encrypted', '')] = safeStorage.decryptString(Buffer.from(value, 'base64')); } catch { /* old OS key unavailable */ }
-      } else settings[key] = value;
+      } else if (!['openrouterKey', 'githubToken'].includes(key)) settings[key] = value; // Ignore legacy plaintext credentials.
     }
   } catch { /* first run */ }
 }
