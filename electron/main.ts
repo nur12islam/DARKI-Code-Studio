@@ -245,6 +245,50 @@ app.whenReady().then(async () => {
     settings[key]=value; await persistSettings();
   });
   ipcMain.handle('settings:read', async (_e,key:string) => ['openrouterKey','githubToken'].includes(key)?null:(settings[key]||null));
+  ipcMain.handle('github:action', async (_e, action:string, args:Record<string,string>) => {
+    const token=settings.githubToken;
+    const api=async (url:string,init:RequestInit={})=>{
+      if(!token) throw new Error('Add a GitHub Personal Access Token in Settings first.');
+      const response=await fetch('https://api.github.com'+url,{...init,headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json',...(init.headers||{})}});
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok) throw new Error('GitHub API '+response.status+': '+String((body as {message?:string}).message||'Request failed'));
+      return body as Record<string,unknown>;
+    };
+    if(action==='login'){const user=await api('/user');return 'Connected to GitHub as '+String(user.login||'unknown')+'.';}
+    if(action==='create-repo'){
+      const name=args.name?.trim();if(!name)throw new Error('Repository name is required.');
+      const result=await api('/user/repos',{method:'POST',body:JSON.stringify({name,private:args.private!=='false',auto_init:true})});
+      return 'Created repository: '+String(result.html_url||result.full_name);
+    }
+    if(action==='clone'){
+      const url=args.url?.trim(),destination=args.destination?.trim();if(!url||!destination)throw new Error('Repository URL and destination path are required.');
+      if(!await approve({title:'Clone GitHub repository?',detail:url+'\\nDestination: '+destination,kind:'command'}))return 'DENIED by user.';
+      await simpleGit().clone(url,destination);return 'Cloned repository into '+destination;
+    }
+    if(action==='pull'){
+      assertProject(args.root||'');if(!await approve({title:'Pull latest Git changes?',detail:'Project: '+args.root,kind:'git'}))return 'DENIED by user.';
+      const result=await simpleGit(args.root).pull();return JSON.stringify({summary:result.summary,files:result.files});
+    }
+    if(action==='branch'){
+      assertProject(args.root||'');const name=args.name?.trim();if(!name)throw new Error('Branch name is required.');
+      if(!await approve({title:'Create Git branch?',detail:name,kind:'git'}))return 'DENIED by user.';
+      await simpleGit(args.root).checkoutLocalBranch(name);return 'Created and switched to '+name;
+    }
+    if(action==='switch'){
+      assertProject(args.root||'');const name=args.name?.trim();if(!name)throw new Error('Branch name is required.');
+      if(!await approve({title:'Switch Git branch?',detail:name,kind:'git'}))return 'DENIED by user.';
+      const git=simpleGit(args.root);const status=await git.status();if(!status.isClean())throw new Error('Commit or stash changes before switching branches.');
+      await git.checkout(name);return 'Switched to '+name;
+    }
+    if(action==='pr'){
+      const owner=args.owner?.trim(),repoName=args.repo?.trim(),title=args.title?.trim(),head=args.head?.trim(),base=args.base?.trim()||'main';
+      if(!owner||!repoName||!title||!head)throw new Error('Owner, repository, title and head branch are required.');
+      if(!await approve({title:'Create GitHub pull request?',detail:owner+'/'+repoName+'\\n'+head+' → '+base+'\\n'+title,kind:'git'}))return 'DENIED by user.';
+      const result=await api('/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repoName)+'/pulls',{method:'POST',body:JSON.stringify({title,head,base,body:args.body||'Created with DARKI Code Studio'})});
+      return 'Pull request created: '+String(result.html_url||'success');
+    }
+    throw new Error('Unknown GitHub action.');
+  });
   ipcMain.handle('git:status', async (_e,root:string) => { assertProject(root); const [b,s]=await Promise.all([simpleGit(root).branch(),simpleGit(root).status()]); return {branch:b.current||'—',status:s.files.length?s.files.length+' changed file(s)':'Clean'}; });
   ipcMain.handle('git:push', async (_e,root:string) => {
     assertProject(root); const git=simpleGit(root); const status=await git.status(); const branch=await git.branch();
