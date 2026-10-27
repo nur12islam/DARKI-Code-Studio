@@ -217,14 +217,45 @@ app.whenReady().then(async () => {
     const d = await r.json() as {data?:Array<{id:string;name?:string;context_length?:number}>};
     return (d.data||[]).map(m=>({id:m.id,name:m.name||m.id,context_length:m.context_length}));
   });
-  ipcMain.handle('openrouter:chat', async (_e, req: {root:string; model:string; messages:Array<{role:string;content:string}>; temperature?:number}) => {
+  ipcMain.handle('openrouter:chat', async (_e, req: {root:string; requestId?:string; model:string; messages:Array<{role:string;content:string}>; temperature?:number}) => {
     const key=settings.openrouterKey; if(!key) throw new Error('Add your OpenRouter API key in Settings first.');
     assertProject(req.root);
     const messages: Array<Record<string, unknown>> = req.messages.map(m=>({role:m.role,content:m.content}));
     const call = async () => {
-      const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'},body:JSON.stringify({model:req.model,messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto'})});
+      const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'},body:JSON.stringify({model:req.model,messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto',stream:true})});
       if(!r.ok) throw new Error('OpenRouter request failed ('+r.status+'): '+(await r.text()).slice(0,400));
-      return await r.json() as {choices?:Array<{message?:{role?:string;content?:string|null;tool_calls?:Array<{id:string;function:{name:string;arguments:string}}>};finish_reason?:string}>};
+      if(!r.body) throw new Error('Streaming response body unavailable.');
+      const reader=r.body.getReader(); const decoder=new TextDecoder(); let buffer=''; let content=''; let finishReason:string|undefined;
+      const calls:Record<number,{id:string;type:'function';function:{name:string;arguments:string}}>= {};
+      const consume=(line:string)=>{
+        if(!line.startsWith('data:')) return;
+        const raw=line.slice(5).trim(); if(!raw||raw==='[DONE]') return;
+        let payload:{choices?:Array<{delta?:{content?:string|null;tool_calls?:Array<{index?:number;id?:string;type?:'function';function?:{name?:string;arguments?:string}}>};finish_reason?:string}>};
+        try{payload=JSON.parse(raw);}catch{return;}
+        const choice=payload.choices?.[0]; if(!choice)return;
+        if(choice.finish_reason)finishReason=choice.finish_reason;
+        const delta=choice.delta;
+        if(typeof delta?.content==='string'&&delta.content){
+          content+=delta.content;
+          if(req.requestId&&mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('chat:chunk',{requestId:req.requestId,chunk:delta.content});
+        }
+        for(const item of delta?.tool_calls||[]){
+          const index=item.index??0;
+          if(!calls[index])calls[index]={id:item.id||'',type:'function',function:{name:'',arguments:''}};
+          if(item.id)calls[index].id=item.id;
+          if(item.function?.name)calls[index].function.name+=item.function.name;
+          if(item.function?.arguments)calls[index].function.arguments+=item.function.arguments;
+        }
+      };
+      while(true){
+        const {done,value}=await reader.read(); if(done)break;
+        buffer+=decoder.decode(value,{stream:true});
+        const lines=buffer.split(/\\r?\\n/); buffer=lines.pop()||'';
+        for(const line of lines)consume(line);
+      }
+      if(buffer)consume(buffer);
+      const toolCalls=Object.keys(calls).map(Number).sort((a,b)=>a-b).map(i=>calls[i]);
+      return {choices:[{message:{role:'assistant',content:content||null,tool_calls:toolCalls.length?toolCalls:undefined},finish_reason:finishReason}]};
     };
     for(let turn=0;turn<12;turn++){
       const data=await call(); const msg=data.choices?.[0]?.message;
