@@ -250,7 +250,7 @@ app.whenReady().then(async () => {
       while(true){
         const {done,value}=await reader.read(); if(done)break;
         buffer+=decoder.decode(value,{stream:true});
-        const lines=buffer.split(/\\r?\\n/); buffer=lines.pop()||'';
+        const lines=buffer.split(/\r?\n/); buffer=lines.pop()||'';
         for(const line of lines)consume(line);
       }
       if(buffer)consume(buffer);
