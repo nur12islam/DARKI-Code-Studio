@@ -90,8 +90,8 @@ app.whenReady().then(async () => {
     const data = await response.json() as { data?: Array<{ id: string; name?: string; context_length?: number }> };
     return (data.data ?? []).map(m => ({ id: m.id, name: m.name || m.id, context_length: m.context_length }));
   });
-  ipcMain.handle('openrouter:chat', async (_e, req: { apiKey?: string; model: string; messages: Array<{ role: string; content: string }>; temperature?: number }) => {
-    const key = settings.openrouterKey || req.apiKey;
+  ipcMain.handle('openrouter:chat', async (_e, req: { model: string; messages: Array<{ role: string; content: string }>; temperature?: number }) => {
+    const key = settings.openrouterKey;
     if (!key) throw new Error('Add your OpenRouter API key in Settings first.');
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darki.online', 'X-Title': 'DARKI Code Studio' },
