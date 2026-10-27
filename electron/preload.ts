@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 export type TreeEntry = { name: string; path: string; type: 'file' | 'directory' };
-export type ChatRequest = { apiKey: string; model: string; messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>; temperature?: number };
+export type ChatRequest = { model: string; messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>; temperature?: number };
 
 const api = {
   openFolder: () => ipcRenderer.invoke('project:open') as Promise<string | null>,
