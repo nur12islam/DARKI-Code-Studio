@@ -51,7 +51,7 @@ export default function App() {
     } catch(e) { set({messages:[...next,{role:'assistant',content:'**Request failed:** '+String(e),id:id()}]}); }
     finally { setBusy(false); }
   }
-  async function saveSettings() { await window.studio.saveSetting('openrouterKey',apiKey); await window.studio.saveSetting('defaultModel',model); await window.studio.saveSetting('approvalMode',approval); setApiKey(''); setSettingsOpen(false); log('Settings saved.'); void window.studio.models().then(setModels).catch(e=>log(String(e))); }
+  async function saveSettings() { if(apiKey.trim()) await window.studio.saveSetting('openrouterKey',apiKey.trim()); await window.studio.saveSetting('defaultModel',model); await window.studio.saveSetting('approvalMode',approval); setApiKey(''); setSettingsOpen(false); log('Settings saved.'); void window.studio.models().then(setModels).catch(e=>log(String(e))); }
   async function push() { if(!root) return; if(!confirm('Push the current Git branch to its configured remote? This does not create a commit.')) return; try { log(await window.studio.push(root)); } catch(e) { log('Push blocked/failed: '+String(e)); } }
   async function runCommand() { if(!root||!terminalCommand.trim()) return; const cmd=terminalCommand; if(!confirm('Allow this command to run in the opened project folder?\n\n'+cmd)) { log('Denied command: '+cmd); return; } setTerminalOutput('Running: '+cmd+'\n'); try { const r=await window.studio.runCommand(root,cmd); setTerminalOutput(r.output+'\nExit code: '+r.code); log('Command exited with '+r.code); } catch(e) { setTerminalOutput(String(e)); } }
   const fileName = (p:string) => p.split('/').pop() || p;
