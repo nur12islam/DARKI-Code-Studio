@@ -78,10 +78,13 @@ export default function App() {
       set({ messages: [...next, { role: 'assistant', content: 'Open a project folder first so I can inspect and work on its files.', id: id() }] });
       setBusy(false); return;
     }
+    const requestId=id(); const assistantId=id(); let stopStreaming=()=>{};
     try {
       const system = 'You are DARKI Code Studio, an autonomous coding agent operating inside the user-selected project folder. First inspect files with list_files/read_file before proposing edits. You may use write_file, delete_file, run_command, git_status, git_commit, git_push and open_preview. All write/delete/command/commit/push operations trigger a user Allow/Deny approval request; never attempt to bypass approval. Make focused changes, explain what you changed, and verify with suitable read-only inspection or tests after changes. Do not claim a tool succeeded unless its result confirms success. Never access paths outside the opened project. For commands, prefer safe project-specific tests/build commands and explain destructive commands. If denied, adapt rather than retrying the same action.';
-      const answer = await window.studio.chat({ root, model, messages: [{ role: 'system', content: system + '\\nCurrent project root: ' + root + '\\nCurrent editor file: ' + (activeFile || '(none)') + '\\nRead files before assuming their contents.' }, ...next.map(m => ({ role: m.role, content: m.content }))], temperature: 0.2 });
-      set({ messages: [...next, { role: 'assistant', content: answer, id: id() }] });
+      set({messages:[...next,{role:'assistant',content:'',id:assistantId}]});
+      stopStreaming=window.studio.onChatChunk(payload=>{if(payload.requestId!==requestId)return;const state=useStudio.getState();state.set({messages:state.messages.map(m=>m.id===assistantId?{...m,content:m.content+payload.chunk}:m)});});
+      const answer = await window.studio.chat({ root, requestId, model, messages: [{ role: 'system', content: system + '\\nCurrent project root: ' + root + '\\nCurrent editor file: ' + (activeFile || '(none)') + '\\nRead files before assuming their contents.' }, ...next.map(m => ({ role: m.role, content: m.content }))], temperature: 0.2 });
+      set({ messages: [...next, { role: 'assistant', content: answer, id: assistantId }] });
       void refreshFiles(); void window.studio.gitStatus(root).then(s => setBranch(s.branch)).catch(() => undefined);
     } catch (e) {
       set({ messages: [...next, { role: 'assistant', content: '**Request failed:** ' + String(e), id: id() }] });
