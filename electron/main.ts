@@ -158,9 +158,12 @@ async function executeTool(root: string, name: string, args: Record<string, unkn
   if (name === 'git_commit') {
     const git = simpleGit(root); const status = await git.status();
     if (!status.files.length) return 'Nothing to commit.';
+    const changedPaths=status.files.map(f=>f.path);
+    const sensitive=changedPaths.filter(p=>/(^|\\/)\\.env($|\\.(?!example$|sample$))|(^|\\/)(id_rsa|credentials\\.json)$|\\.(pem|p12|key)$/i.test(p));
+    if(sensitive.length) throw new Error('Commit blocked because potentially secret files changed: '+sensitive.join(', ')+'. Remove secrets from these files or add safe example files before committing.');
     const message = String(args.message || 'Changes from DARKI Code Studio');
-    if (!await approve({ title: 'Approve Git commit', detail: message + '\n\nChanged files:\n' + status.files.map(f => f.path).join('\n'), kind: 'git' })) return 'DENIED by user.';
-    await git.add('.'); const result = await git.commit(message); return JSON.stringify({commit:result.commit,summary:result.summary});
+    if (!await approve({ title: 'Approve Git commit', detail: message + '\n\nChanged files:\n' + changedPaths.join('\n'), kind: 'git' })) return 'DENIED by user.';
+    await git.add(changedPaths); const result = await git.commit(message); return JSON.stringify({commit:result.commit,summary:result.summary});
   }
   if (name === 'git_push') {
     const git = simpleGit(root); const status = await git.status(); const branch = await git.branch();
