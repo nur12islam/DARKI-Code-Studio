@@ -206,7 +206,7 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('fs:write', async (_e, root: string, rel: string, content: string) => {
-    const existing = await fs.readFile(safeTarget(root, rel), 'utf8').catch(()=>'');
+    const existing = await readProjectFile(root, rel).catch(()=>'');
     if (!await approve({title:'Save file?',detail:rel,kind:'write',diff:'--- CURRENT ---\n'+existing.slice(0,4000)+'\n--- NEW ---\n'+String(content).slice(0,6000)})) throw new Error('File save denied.');
     await writeProjectFile(root, rel, content);
   });
