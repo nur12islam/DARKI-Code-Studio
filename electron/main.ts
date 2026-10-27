@@ -108,7 +108,7 @@ app.whenReady().then(async () => {
     await persistSettings();
   });
   ipcMain.handle('settings:read', async (_e, key: string) => {
-    if (['openrouterKey', 'githubToken'].includes(key)) return settings[key] || null;
+    if (['openrouterKey', 'githubToken'].includes(key)) return null; // Never return secrets to the renderer.
     return settings[key] || null;
   });
   ipcMain.handle('git:status', async (_e, root: string) => {
