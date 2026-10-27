@@ -25,7 +25,7 @@ async function persistSettings() {
   for (const [key, value] of Object.entries(settings)) {
     if (['openrouterKey', 'githubToken'].includes(key)) {
       if (safeStorage.isEncryptionAvailable()) out[key + 'Encrypted'] = safeStorage.encryptString(value).toString('base64');
-      else out[key] = value; // Electron warns in UI if OS encryption is unavailable.
+      else throw new Error('OS encryption is unavailable; refusing to store API credentials in plaintext.');
     } else out[key] = value;
   }
   await fs.writeFile(settingsPath(), JSON.stringify(out, null, 2), { mode: 0o600 });
@@ -46,6 +46,26 @@ function safeTarget(root: string, relative: string) {
 function assertProject(root: string) {
   if (!root || !path.isAbsolute(root)) throw new Error('Choose a valid project folder first.');
 }
+async function assertSafePath(root:string,relative:string) {
+  assertProject(root);
+  const base=path.resolve(root);
+  const target=safeTarget(root,relative);
+  const rel=path.relative(base,target);
+  let current=base;
+  const parts=rel ? rel.split(path.sep) : [];
+  for(let i=0;i<parts.length;i++){
+    current=path.join(current,parts[i]);
+    try {
+      const stat=await fs.lstat(current);
+      if(stat.isSymbolicLink()) throw new Error('Symbolic links are blocked for project operations.');
+      if(i<parts.length-1 && !stat.isDirectory()) throw new Error('A parent path component is not a directory.');
+    } catch(e) {
+      if((e as NodeJS.ErrnoException).code==='ENOENT') break;
+      throw e;
+    }
+  }
+  return target;
+}
 async function approve(action: { title: string; detail: string; kind: string; diff?: string }) {
   const mode = settings.approvalMode || 'Ask every time';
   if (mode === 'Auto-allow safe read-only actions' && action.kind === 'read') return true;
@@ -61,7 +81,7 @@ async function approve(action: { title: string; detail: string; kind: string; di
   });
 }
 async function walk(root: string, current = ''): Promise<Array<{ name: string; path: string; type: 'file' | 'directory' }>> {
-  const dir = safeTarget(root, current);
+  const dir = await assertSafePath(root, current);
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const result: Array<{ name: string; path: string; type: 'file' | 'directory' }> = [];
   for (const entry of entries.sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name))) {
@@ -73,14 +93,14 @@ async function walk(root: string, current = ''): Promise<Array<{ name: string; p
   return result;
 }
 async function readProjectFile(root: string, rel: string) {
-  assertProject(root); const target = safeTarget(root, rel); const stat = await fs.lstat(target);
+  const target = await assertSafePath(root, rel); const stat = await fs.lstat(target);
   if (stat.isSymbolicLink() || !stat.isFile()) throw new Error('Only regular files can be read.');
   if (stat.size > 2_000_000) throw new Error('File exceeds 2 MB limit.');
   return fs.readFile(target, 'utf8');
 }
 async function writeProjectFile(root: string, rel: string, content: string) {
   assertProject(root); if (!rel || !rel.trim()) throw new Error('A relative file path is required.');
-  const target = safeTarget(root, rel);
+  const target = await assertSafePath(root, rel);
   await fs.mkdir(path.dirname(target), { recursive: true });
   try { const stat = await fs.lstat(target); if (stat.isSymbolicLink() || stat.isDirectory()) throw new Error('Refusing to overwrite a symlink or directory.'); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
   await fs.writeFile(target, content, 'utf8');
@@ -159,7 +179,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('fs:list', async (_e, root: string) => { assertProject(root); return walk(root); });
   ipcMain.handle('fs:read', async (_e, root: string, rel: string) => readProjectFile(root, rel));
   ipcMain.handle('fs:create', async (_e, root:string, rel:string, type:'file'|'directory') => {
-    assertProject(root); const target=safeTarget(root,rel);
+    assertProject(root); const target=await assertSafePath(root,rel);
     if (!rel || rel.split(/[\\\\/]/).some(part=>part==='..')) throw new Error('Invalid project-relative path.');
     if (type==='directory') {
       if (!await approve({title:'Create folder?',detail:rel,kind:'write'})) throw new Error('Creation denied.');
@@ -169,13 +189,13 @@ app.whenReady().then(async () => {
     await fs.mkdir(path.dirname(target),{recursive:true}); const handle=await fs.open(target,'wx'); await handle.close();
   });
   ipcMain.handle('fs:delete', async (_e,root:string,rel:string) => {
-    assertProject(root); const target=safeTarget(root,rel); const stat=await fs.lstat(target);
+    assertProject(root); const target=await assertSafePath(root,rel); const stat=await fs.lstat(target);
     if(stat.isSymbolicLink()) throw new Error('Refusing to delete symbolic links.');
     if(!await approve({title:'Delete project item?',detail:rel+'\\nThis cannot be undone by the app.',kind:'delete'})) throw new Error('Deletion denied.');
     if(stat.isDirectory()) await fs.rm(target,{recursive:true,force:false}); else await fs.unlink(target);
   });
   ipcMain.handle('fs:rename', async (_e,root:string,from:string,to:string) => {
-    assertProject(root); const source=safeTarget(root,from), target=safeTarget(root,to);
+    assertProject(root); const source=await assertSafePath(root,from), target=await assertSafePath(root,to);
     if(!to || to.split(/[\\\\/]/).some(part=>part==='..')) throw new Error('Invalid destination path.');
     const stat=await fs.lstat(source); if(stat.isSymbolicLink()) throw new Error('Refusing to rename symbolic links.');
     if(!await approve({title:'Rename project item?',detail:from+'  →  '+to,kind:'write'})) throw new Error('Rename denied.');
