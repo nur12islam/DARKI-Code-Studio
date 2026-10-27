@@ -6,15 +6,20 @@ A Windows-first desktop AI coding workspace built with Electron, React, TypeScri
 
 - Secure Electron shell: context isolation, disabled renderer Node integration and typed preload IPC.
 - Project folder selection, file tree, create/rename/delete, Monaco editing, Ctrl+S and file filtering.
-- OpenRouter model discovery and streamed chat responses.
+- OpenRouter model discovery, streamed chat responses, a free-only model filter, and configurable model-level fallback routing (defaults to `openrouter/free`).
 - Agent function/tool calling: list/read/write/delete files, run PowerShell commands, Git status/commit/push and preview guidance.
 - Allow/Deny approval cards for file changes, deletion, commands, Git commits, pushes, branch changes, pull and repository creation.
 - Code block Copy and Apply to file actions; applying code is approval-gated.
 - In-memory undo for the latest AI file write during the current app session.
 - GitHub token settings, identity check, repository creation, clone, local pull, branch create/switch and pull request creation.
 - Encrypted credential storage with Electron safeStorage where supported; plaintext credential storage is refused if encryption is unavailable.
+- Prompt-injection hardening guidance: project files and tool output are treated as untrusted data, with explicit rules against revealing secrets or exfiltrating project contents.
 - Symlink/path traversal checks, secret-file checks before AI-created commits, basic Git status and a sandboxed preview iframe.
 - GitHub Actions workflow for Windows type-check/build/package and installer artifact upload.
+
+## Open-source readiness
+
+The code is being prepared for community review, but the repository is currently private and does not yet declare an open-source license. Do not redistribute builds or source until the repository owner makes it public and chooses a license. Before a public release, review dependency licenses, run the build and security checks, and confirm no credentials, private project data, or generated artifacts are committed.
 
 ## Known limitations
 
