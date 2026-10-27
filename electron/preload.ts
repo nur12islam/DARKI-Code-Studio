@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 export type TreeEntry = {name:string;path:string;type:'file'|'directory'};
-export type ChatRequest = {root:string;model:string;messages:Array<{role:'system'|'user'|'assistant';content:string}>;temperature?:number};
+export type ChatRequest = {root:string;requestId:string;model:string;messages:Array<{role:'system'|'user'|'assistant';content:string}>;temperature?:number};
 export type ApprovalRequest = {id:string;title:string;detail:string;kind:string;diff?:string};
 const api = {
  openFolder:()=>ipcRenderer.invoke('project:open') as Promise<string|null>,
@@ -12,6 +12,7 @@ const api = {
  renameItem:(root:string,from:string,to:string)=>ipcRenderer.invoke('fs:rename',root,from,to) as Promise<void>,
  models:()=>ipcRenderer.invoke('openrouter:models') as Promise<Array<{id:string;name:string;context_length?:number}>>,
  chat:(request:ChatRequest)=>ipcRenderer.invoke('openrouter:chat',request) as Promise<string>,
+ onChatChunk:(callback:(payload:{requestId:string;chunk:string})=>void)=>{const listener=(_event:unknown,payload:{requestId:string;chunk:string})=>callback(payload);ipcRenderer.on('chat:chunk',listener);return()=>ipcRenderer.removeListener('chat:chunk',listener);},
  githubAction:(action:string,args:Record<string,string>)=>ipcRenderer.invoke('github:action',action,args) as Promise<string>,
  undoLast:(root:string)=>ipcRenderer.invoke('undo:last',root) as Promise<string>,
  gitStatus:(root:string)=>ipcRenderer.invoke('git:status',root) as Promise<{branch:string;status:string}>,
