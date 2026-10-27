@@ -13,6 +13,7 @@ const api = {
  models:()=>ipcRenderer.invoke('openrouter:models') as Promise<Array<{id:string;name:string;context_length?:number}>>,
  chat:(request:ChatRequest)=>ipcRenderer.invoke('openrouter:chat',request) as Promise<string>,
  githubAction:(action:string,args:Record<string,string>)=>ipcRenderer.invoke('github:action',action,args) as Promise<string>,
+ undoLast:(root:string)=>ipcRenderer.invoke('undo:last',root) as Promise<string>,
  gitStatus:(root:string)=>ipcRenderer.invoke('git:status',root) as Promise<{branch:string;status:string}>,
  push:(root:string)=>ipcRenderer.invoke('git:push',root) as Promise<string>,
  previewUrl:(root:string)=>ipcRenderer.invoke('preview:url',root) as Promise<string|null>,
