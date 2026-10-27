@@ -43,16 +43,22 @@ export default function App() {
   async function saveFile() { if(!root||!activeFile) return; try { await window.studio.writeFile(root,activeFile,fileContent); set({dirty:false}); log('Saved '+activeFile); await refreshFiles(); if(preview) setPreview(preview+''); } catch(e) { log('Save failed: '+String(e)); } }
   useEffect(() => { const handler = (e: KeyboardEvent) => { if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();void saveFile();} }; window.addEventListener('keydown',handler); return()=>window.removeEventListener('keydown',handler); });
   async function send() {
-    if(!input.trim()||busy) return;
-    const user = {role:'user' as const,content:input.trim(),id:id()};
-    const next = [...messages,user]; set({messages:next}); setInput(''); setBusy(true);
+    if (!input.trim() || busy) return;
+    const user = { role: 'user' as const, content: input.trim(), id: id() };
+    const next = [...messages, user];
+    set({ messages: next }); setInput(''); setBusy(true);
+    if (!root) {
+      set({ messages: [...next, { role: 'assistant', content: 'Open a project folder first so I can inspect and work on its files.', id: id() }] });
+      setBusy(false); return;
+    }
     try {
       const system = 'You are DARKI Code Studio, an autonomous coding agent operating inside the user-selected project folder. First inspect files with list_files/read_file before proposing edits. You may use write_file, delete_file, run_command, git_status, git_commit, git_push and open_preview. All write/delete/command/commit/push operations trigger a user Allow/Deny approval request; never attempt to bypass approval. Make focused changes, explain what you changed, and verify with suitable read-only inspection or tests after changes. Do not claim a tool succeeded unless its result confirms success. Never access paths outside the opened project. For commands, prefer safe project-specific tests/build commands and explain destructive commands. If denied, adapt rather than retrying the same action.';
-      const answer = await if(!root) { set({messages:[...next,{role:'assistant',content:'Open a project folder first so I can inspect and work on its files.',id:id()}]}); setBusy(false); return; }
-      const answer = await window.studio.chat({root,model,messages:[{role:'system',content:system + '\\n\\nCurrent project root: '+root+'\\nCurrent file: '+(activeFile||'(none)')+'\\nCurrent editor content is not guaranteed saved; ask to read the file if needed.'},...next.map(m=>({role:m.role,content:m.content}))],temperature:0.2});
-      set({messages:[...next,{role:'assistant',content:answer,id:id()}]});
-    } catch(e) { set({messages:[...next,{role:'assistant',content:'**Request failed:** '+String(e),id:id()}]}); }
-    finally { setBusy(false); }
+      const answer = await window.studio.chat({ root, model, messages: [{ role: 'system', content: system + '\\nCurrent project root: ' + root + '\\nCurrent editor file: ' + (activeFile || '(none)') + '\\nRead files before assuming their contents.' }, ...next.map(m => ({ role: m.role, content: m.content }))], temperature: 0.2 });
+      set({ messages: [...next, { role: 'assistant', content: answer, id: id() }] });
+      void refreshFiles(); void window.studio.gitStatus(root).then(s => setBranch(s.branch)).catch(() => undefined);
+    } catch (e) {
+      set({ messages: [...next, { role: 'assistant', content: '**Request failed:** ' + String(e), id: id() }] });
+    } finally { setBusy(false); }
   }
   async function saveSettings() { if(apiKey.trim()) await window.studio.saveSetting('openrouterKey',apiKey.trim()); await window.studio.saveSetting('defaultModel',model); await window.studio.saveSetting('approvalMode',approval); setApiKey(''); setSettingsOpen(false); log('Settings saved.'); void window.studio.models().then(setModels).catch(e=>log(String(e))); }
   async function push() { if(!root) return; if(!confirm('Push the current Git branch to its configured remote? This does not create a commit.')) return; try { log(await window.studio.push(root)); } catch(e) { log('Push blocked/failed: '+String(e)); } }
