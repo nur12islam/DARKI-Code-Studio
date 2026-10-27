@@ -2,25 +2,31 @@
 
 A Windows-first desktop AI coding workspace built with Electron, React, TypeScript, Vite, Tailwind CSS, Monaco Editor, Zustand, simple-git and OpenRouter.
 
-## Current implementation
+## Implemented in this development pass
 
-- Electron main process with context isolation, disabled renderer Node integration and a typed preload bridge.
-- Project folder selection, file explorer, create/rename/delete file controls, Monaco editing and Ctrl+S.
-- OpenRouter model discovery and chat completions with tool/function calling.
-- Agent tools: list/read/write/delete project files, run a PowerShell command, inspect Git status, commit, push and suggest a preview URL.
-- Allow/Deny approval cards for agent file changes, deletions, commands, commits and pushes. Approval requests time out as denied.
-- Local settings and encrypted API key storage via Electron safeStorage when available.
-- Basic Git branch/status, preview panel and terminal/log panel.
-- GitHub Actions workflow to build and package a Windows installer.
+- Secure Electron shell: context isolation, disabled renderer Node integration and typed preload IPC.
+- Project folder selection, file tree, create/rename/delete, Monaco editing, Ctrl+S and file filtering.
+- OpenRouter model discovery and streamed chat responses.
+- Agent function/tool calling: list/read/write/delete files, run PowerShell commands, Git status/commit/push and preview guidance.
+- Allow/Deny approval cards for file changes, deletion, commands, Git commits, pushes, branch changes, pull and repository creation.
+- Code block Copy and Apply to file actions; applying code is approval-gated.
+- In-memory undo for the latest AI file write during the current app session.
+- GitHub token settings, identity check, repository creation, clone, local pull, branch create/switch and pull request creation.
+- Encrypted credential storage with Electron safeStorage where supported; plaintext credential storage is refused if encryption is unavailable.
+- Symlink/path traversal checks, secret-file checks before AI-created commits, basic Git status and a sandboxed preview iframe.
+- GitHub Actions workflow for Windows type-check/build/package and installer artifact upload.
 
-This is an active early-stage project. Streaming token delivery, robust preview-server lifecycle management, persistent multi-chat sessions, GitHub PAT login/repository creation/clone/pull/PR flows, real Monaco side-by-side diff editor, undo snapshots, and comprehensive automated tests are not yet complete. GitHub Actions has been added but its first run still needs to confirm that the code compiles and packages correctly.
+## Known limitations
+
+This is still an early-stage build, not a release-ready coding agent. Multi-chat sessions per project, persistent chat history, OpenRouter credit/usage display, fully managed preview server lifecycle, preview console capture, rich side-by-side Monaco diff review, undo history across app restarts, full pull/clone conflict handling, and end-to-end tests remain incomplete. Git clone currently uses the provided URL and may not authenticate private repositories automatically. Review commands carefully; Electron's approval layer is not a security sandbox for untrusted code.
 
 ## Requirements
 
 - Windows 10/11
 - Node.js 22 LTS recommended
 - Git for Windows
-- An OpenRouter API key
+- OpenRouter API key
+- GitHub Personal Access Token for GitHub API actions
 
 ## Run locally
 
@@ -29,35 +35,27 @@ This is an active early-stage project. Streaming token delivery, robust preview-
     npm install
     npm run dev
 
-## Build the Windows installer
+## Build a Windows installer
 
     npm run build
     npm run dist
 
-The NSIS installer should appear in the release directory when packaging succeeds. The GitHub Actions workflow also uploads an installer artifact when the workflow succeeds.
+The installer should appear in the release directory when packaging succeeds. The GitHub Actions workflow uploads the Windows installer as an artifact. Check the Actions tab for the latest run and download its artifact after a successful build.
 
-## Configure OpenRouter
+## Configure credentials
 
-1. Open Settings in the app.
-2. Paste your API key from the official OpenRouter key page.
-3. Save settings and choose a model from the top bar.
+1. Open Settings in DARKI Code Studio.
+2. Add an OpenRouter API key and, optionally, a GitHub Personal Access Token.
+3. Save settings and select a model in the top bar.
 
-The key is used in Electron's main process and is not returned to the renderer. Electron safeStorage encrypts secrets when OS encryption is available. If encryption is unavailable, avoid using the app on a shared Windows account and do not share the app's settings file.
+Credentials are handled in Electron's main process and are not returned to the renderer. They are encrypted with safeStorage when OS encryption is available. If encryption is unavailable, the app refuses to save credentials.
 
-## Agent approval model
+## Safety
 
-- File writes/deletes, commands, Git commits and pushes are paused until approved, subject to the selected approval mode.
-- Denied actions return a denial result to the model.
-- Commands execute in PowerShell on Windows and can still perform dangerous operations if approved. Review them carefully.
-- File path validation blocks parent-directory traversal, but this app is not a hardened sandbox for hostile projects or untrusted dependencies. Do not open untrusted repositories or approve commands you do not understand.
-
-## Roadmap
-
-- Stream model output to the chat UI.
-- Monaco diff review and one-click undo for file changes.
-- Persistent multiple chat sessions per project.
-- Manage the full GitHub workflow: token setup, clone, pull, branch operations and pull requests.
-- Start/stop project preview servers safely and display preview console errors.
-- Add end-to-end tests and validate the Windows installer on a clean machine.
+- Agent writes, deletes, commands, commits and pushes require explicit approval by default. Approval requests time out as denied.
+- Review file content and commands before approving. Commands can modify files or access the network.
+- AI-created commits block common secret file patterns such as .env and private keys.
+- Path validation blocks parent traversal and rejects symlinks during project file operations. This is not a hardened sandbox for hostile projects or dependencies.
+- Never commit API keys, tokens, private keys, or other secrets.
 
 Contributions and focused bug reports are welcome.
