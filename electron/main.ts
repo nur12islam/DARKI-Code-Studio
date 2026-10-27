@@ -9,6 +9,7 @@ const settingsPath = () => path.join(app.getPath('userData'), 'settings.json');
 const settings: Record<string, string> = {};
 const pendingApprovals = new Map<string, (approved: boolean) => void>();
 let approvalSeq = 0;
+const aiUndoStack: Array<{root:string;path:string;before:string|null;after:string}> = [];
 
 async function loadSettings() {
   try {
@@ -132,10 +133,12 @@ async function executeTool(root: string, name: string, args: Record<string, unkn
   if (name === 'read_file') return await readProjectFile(root, String(args.path || ''));
   if (name === 'write_file') {
     const rel = String(args.path || ''); const content = String(args.content ?? '');
-    let before = ''; try { before = await readProjectFile(root, rel); } catch { /* new file */ }
-    const diff = 'FILE: ' + rel + '\n--- BEFORE ---\n' + before.slice(0, 8000) + '\n--- PROPOSED ---\n' + content.slice(0, 12000);
+    let before: string | null = null; try { before = await readProjectFile(root, rel); } catch { /* new file */ }
+    const diff = 'FILE: ' + rel + '\n--- BEFORE ---\n' + (before ?? '(new file)').slice(0, 8000) + '\n--- PROPOSED ---\n' + content.slice(0, 12000);
     if (!await approve({ title: 'Approve file change', detail: rel, kind: 'write', diff })) return 'DENIED by user. Do not retry the same change without revising the plan.';
-    await writeProjectFile(root, rel, content); return 'Saved ' + rel;
+    await writeProjectFile(root, rel, content);
+    aiUndoStack.push({root,path:rel,before,after:content}); if (aiUndoStack.length > 30) aiUndoStack.shift();
+    return 'Saved ' + rel;
   }
   if (name === 'delete_file') {
     const rel = String(args.path || ''); const target = safeTarget(root, rel); const stat = await fs.lstat(target);
@@ -289,6 +292,14 @@ app.whenReady().then(async () => {
       return 'Pull request created: '+String(result.html_url||'success');
     }
     throw new Error('Unknown GitHub action.');
+  });
+  ipcMain.handle('undo:last', async (_e,root:string) => {
+    assertProject(root); const item=aiUndoStack[aiUndoStack.length-1];
+    if(!item || item.root!==root) throw new Error('No AI file edit to undo for this project.');
+    if(!await approve({title:'Undo last AI file edit?',detail:item.path,kind:'write',diff:'--- CURRENT AI VERSION ---\\n'+item.after.slice(0,6000)+'\\n--- RESTORE ---\\n'+(item.before??'(file will be deleted)')})) throw new Error('Undo denied.');
+    const target=await assertSafePath(root,item.path);
+    if(item.before===null) await fs.unlink(target); else await writeProjectFile(root,item.path,item.before);
+    aiUndoStack.pop(); return 'Undid last AI edit to '+item.path;
   });
   ipcMain.handle('git:status', async (_e,root:string) => { assertProject(root); const [b,s]=await Promise.all([simpleGit(root).branch(),simpleGit(root).status()]); return {branch:b.current||'—',status:s.files.length?s.files.length+' changed file(s)':'Clean'}; });
   ipcMain.handle('git:push', async (_e,root:string) => {
