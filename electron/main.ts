@@ -17,14 +17,14 @@ async function loadSettings() {
     for (const [key, value] of Object.entries(raw)) {
       if (key.endsWith('Encrypted') && safeStorage.isEncryptionAvailable()) {
         try { settings[key.replace('Encrypted', '')] = safeStorage.decryptString(Buffer.from(value, 'base64')); } catch { /* old OS key unavailable */ }
-      } else if (!['openrouterKey', 'githubToken'].includes(key)) settings[key] = value; // Ignore legacy plaintext credentials.
+      } else if (!['openrouterKey', 'geminiKey', 'githubToken'].includes(key)) settings[key] = value; // Ignore legacy plaintext credentials.
     }
   } catch { /* first run */ }
 }
 async function persistSettings() {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(settings)) {
-    if (['openrouterKey', 'githubToken'].includes(key)) {
+    if (['openrouterKey', 'geminiKey', 'githubToken'].includes(key)) {
       if (safeStorage.isEncryptionAvailable()) out[key + 'Encrypted'] = safeStorage.encryptString(value).toString('base64');
       else throw new Error('OS encryption is unavailable; refusing to store API credentials in plaintext.');
     } else out[key] = value;
@@ -213,20 +213,29 @@ app.whenReady().then(async () => {
     if (!await approve({title:'Save file?',detail:rel,kind:'write',diff:'--- CURRENT ---\n'+existing.slice(0,4000)+'\n--- NEW ---\n'+String(content).slice(0,6000)})) throw new Error('File save denied.');
     await writeProjectFile(root, rel, content);
   });
-  ipcMain.handle('openrouter:models', async () => {
+  ipcMain.handle('openrouter:models', async (_e, provider: 'openrouter'|'gemini' = 'openrouter') => {
+    if(provider==='gemini') {
+      const key=settings.geminiKey; if(!key) return [];
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models',{headers:{Authorization:'Bearer '+key}});
+      if(!r.ok) throw new Error('Gemini models request failed: '+r.status);
+      const d=await r.json() as {data?:Array<{id:string;name?:string}>};
+      return (d.data||[]).filter(m=>m.id.startsWith('gemini-')).map(m=>({id:m.id,name:m.name||m.id,isFree:false}));
+    }
     const key = settings.openrouterKey;
     const r = await fetch('https://openrouter.ai/api/v1/models', {headers:key?{Authorization:'Bearer '+key}:{}});
     if (!r.ok) throw new Error('OpenRouter models request failed: '+r.status);
     const d = await r.json() as {data?:Array<{id:string;name?:string;context_length?:number;pricing?:{prompt?:string;completion?:string}}>};
     return (d.data||[]).map(m=>({id:m.id,name:m.name||m.id,context_length:m.context_length,isFree:m.id.endsWith(':free')||(Number(m.pricing?.prompt)===0&&Number(m.pricing?.completion)===0)}));
   });
-  ipcMain.handle('openrouter:chat', async (_e, req: {root:string; requestId?:string; model:string; messages:Array<{role:string;content:string}>; temperature?:number; autoFallback?:boolean; fallbackModels?:string[]}) => {
-    const key=settings.openrouterKey; if(!key) throw new Error('Add your OpenRouter API key in Settings first.');
+  ipcMain.handle('openrouter:chat', async (_e, req: {root:string; requestId?:string; model:string; messages:Array<{role:string;content:string}>; temperature?:number; autoFallback?:boolean; fallbackModels?:string[]; provider?:'openrouter'|'gemini'}) => {
+    const provider=req.provider==='gemini'?'gemini':'openrouter';
+    const key=provider==='gemini'?settings.geminiKey:settings.openrouterKey;
+    if(!key) throw new Error('Add your '+(provider==='gemini'?'Gemini':'OpenRouter')+' API key in Settings first.');
     assertProject(req.root);
     const messages: Array<Record<string, unknown>> = req.messages.map(m=>({role:m.role,content:m.content}));
     const call = async () => {
-      const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'},body:JSON.stringify({model:req.model,...(req.autoFallback!==false&&req.fallbackModels?.length?{models:[...new Set(req.fallbackModels.filter(m=>m&&m!==req.model))]}:{}),messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto',stream:true})});
-      if(!r.ok) throw new Error('OpenRouter request failed ('+r.status+'): '+(await r.text()).slice(0,400));
+      const r=await fetch(provider==='gemini'?'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions':'https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',...(provider==='openrouter'?{'HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'}:{})},body:JSON.stringify({model:req.model,...(provider==='openrouter'&&req.autoFallback!==false&&req.fallbackModels?.length?{models:[...new Set(req.fallbackModels.filter(m=>m&&m!==req.model))]}:{}),messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto',stream:true})});
+      if(!r.ok) throw new Error(provider+' request failed ('+r.status+'): '+(await r.text()).slice(0,400));
       if(!r.body) throw new Error('Streaming response body unavailable.');
       const reader=r.body.getReader(); const decoder=new TextDecoder(); let buffer=''; let content=''; let finishReason:string|undefined;
       const calls:Record<number,{id:string;type:'function';function:{name:string;arguments:string}}>= {};
@@ -278,10 +287,10 @@ app.whenReady().then(async () => {
     return 'I reached the maximum number of tool steps for this turn. Please review the files and continue with a focused follow-up.';
   });
   ipcMain.handle('settings:save', async (_e,key:string,value:string) => {
-    if(!['openrouterKey','githubToken','defaultModel','approvalMode','autoFallback','fallbackModels'].includes(key)) throw new Error('Unsupported setting.');
+    if(!['openrouterKey','geminiKey','githubToken','defaultModel','approvalMode','autoFallback','fallbackModels','modelProvider','geminiModel'].includes(key)) throw new Error('Unsupported setting.');
     settings[key]=value; await persistSettings();
   });
-  ipcMain.handle('settings:read', async (_e,key:string) => ['openrouterKey','githubToken'].includes(key)?null:(settings[key]||null));
+  ipcMain.handle('settings:read', async (_e,key:string) => ['openrouterKey','geminiKey','githubToken'].includes(key)?null:(settings[key]||null));
   ipcMain.handle('github:action', async (_e, action:string, args:Record<string,string>) => {
     const token=settings.githubToken;
     const api=async (url:string,init:RequestInit={})=>{
