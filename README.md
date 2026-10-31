@@ -1,5 +1,12 @@
 # DARKI Code Studio
 
+## ⬇️ Download for Windows
+
+**[Download the latest Windows installer (EXE inside ZIP)](https://github.com/nur12islam/DARKI-Code-Studio/actions/runs/41166684888/artifacts/13028448912)**
+
+Download the artifact, extract the ZIP, then run the installer `.exe`. This build was produced by the successful [Windows build workflow](https://github.com/nur12islam/DARKI-Code-Studio/actions/runs/41166684888). GitHub Actions artifacts expire, so this link is temporary; for the latest build, visit [Windows Build Actions](https://github.com/nur12islam/DARKI-Code-Studio/actions/workflows/windows-build.yml).
+
+
 A Windows-first desktop AI coding workspace built with Electron, React, TypeScript, Vite, Monaco Editor, Zustand, simple-git and Google Gemini (default) with optional OpenRouter.
 
 ## Implemented in this development pass
@@ -30,8 +37,9 @@ This is still an early-stage build, not a release-ready coding agent. Multi-chat
 - Windows 10/11
 - Node.js 22 LTS recommended
 - Git for Windows
-- OpenRouter API key
-- GitHub Personal Access Token for GitHub API actions
+- Google Gemini API key (recommended/default provider)
+- Optional OpenRouter API key
+- Optional GitHub Personal Access Token for GitHub API actions
 
 ## Run locally
 
@@ -45,12 +53,12 @@ This is still an early-stage build, not a release-ready coding agent. Multi-chat
     npm run build
     npm run dist
 
-The installer should appear in the release directory when packaging succeeds. The GitHub Actions workflow uploads the Windows installer as an artifact. Check the Actions tab for the latest run and download its artifact after a successful build.
+The installer should appear in the release directory when packaging succeeds. The GitHub Actions workflow uploads the Windows installer as an artifact. You can download the current build from the link at the top of this README; artifacts expire, so use the Actions page for newer builds.
 
 ## Configure credentials
 
 1. Open Settings in DARKI Code Studio.
-2. Add an OpenRouter API key and, optionally, a GitHub Personal Access Token.
+2. Add your Google Gemini API key (or optionally an OpenRouter API key) and, if needed, a GitHub Personal Access Token.
 3. Save settings and select a model in the top bar.
 
 Credentials are handled in Electron's main process and are not returned to the renderer. They are encrypted with safeStorage when OS encryption is available. If encryption is unavailable, the app refuses to save credentials.
