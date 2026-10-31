@@ -69,7 +69,7 @@ export default function App() {
   async function renameActive() {
     if(!root||!activeFile) return;
     const to=prompt('Rename/move to project-relative path:',activeFile); if(!to||to===activeFile) return;
-    try { await window.studio.renameItem(root,activeFile,to); set({activeFile:null,fileContent:'',dirty:false}); await refreshFiles(); log('Renamed '+activeFile+' to '+to); }
+    try { const from=activeFile; await window.studio.renameItem(root,from,to); set({activeFile:to,fileContent,dirty}); await refreshFiles(); log('Renamed '+from+' to '+to); }
     catch(e) { log('Rename failed: '+String(e)); alert(String(e)); }
   }
   async function deleteActive() {
