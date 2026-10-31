@@ -7,13 +7,13 @@
 Download the artifact, extract the ZIP, then run the installer `.exe`. This build was produced by the successful [Windows build workflow](https://github.com/nur12islam/DARKI-Code-Studio/actions/runs/41166684888). GitHub Actions artifacts expire, so this link is temporary; for the latest build, visit [Windows Build Actions](https://github.com/nur12islam/DARKI-Code-Studio/actions/workflows/windows-build.yml).
 
 
-A Windows-first desktop AI coding workspace built with Electron, React, TypeScript, Vite, Monaco Editor, Zustand, simple-git and Google Gemini (default) with optional OpenRouter.
+A Windows-first desktop AI coding workspace built with Electron, React, TypeScript, Vite, Monaco Editor, Zustand, simple-git and Google Gemini `gemini-3.8-flash` (default) with optional OpenRouter.
 
 ## Implemented in this development pass
 
 - Secure Electron shell: context isolation, disabled renderer Node integration and typed preload IPC.
 - New project scaffolding (React + TypeScript + Vite), project folder selection, file tree, create/rename/delete, Monaco editing, Ctrl+S and file filtering.
-- Direct Gemini API integration using Google's OpenAI-compatible endpoint, model discovery, streamed chat and function calling; Gemini is the default provider/model. Optional OpenRouter support includes model discovery, a free-only filter, and configurable fallback routing (defaults to `openrouter/free`).
+- Direct Gemini API integration using Google's OpenAI-compatible endpoint, model discovery, streamed chat and function calling; Gemini `gemini-3.8-flash` is the default provider/model. Optional OpenRouter support includes model discovery, a free-only filter, and configurable fallback routing (defaults to `openrouter/free`).
 - Agent function/tool calling: list/read/write/delete files, run PowerShell commands, Git status/commit/push and preview guidance.
 - Allow/Deny approval cards for file changes, deletion, commands, Git commits, pushes, branch changes, pull and repository creation.
 - Code block Copy and Apply to file actions; applying code is approval-gated.
