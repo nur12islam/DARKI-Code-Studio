@@ -4,6 +4,7 @@ export type ChatRequest = {root:string;requestId:string;model:string;messages:Ar
 export type ApprovalRequest = {id:string;title:string;detail:string;kind:string;diff?:string};
 const api = {
  openFolder:()=>ipcRenderer.invoke('project:open') as Promise<string|null>,
+ createProject:(parent:string,name:string)=>ipcRenderer.invoke('project:create',parent,name) as Promise<string>,
  listFiles:(root:string)=>ipcRenderer.invoke('fs:list',root) as Promise<TreeEntry[]>,
  readFile:(root:string,relativePath:string)=>ipcRenderer.invoke('fs:read',root,relativePath) as Promise<string>,
  writeFile:(root:string,relativePath:string,content:string)=>ipcRenderer.invoke('fs:write',root,relativePath,content) as Promise<void>,
