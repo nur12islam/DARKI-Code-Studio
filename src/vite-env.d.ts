@@ -4,6 +4,7 @@ declare global {
  interface Window {
   studio:{
    openFolder():Promise<string|null>;
+   chooseProjectParent():Promise<string|null>;
    createProject(parent:string,name:string):Promise<string>;
    listFiles(root:string):Promise<StudioTreeEntry[]>;
    readFile(root:string,path:string):Promise<string>;
