@@ -47,7 +47,7 @@ export default function App() {
   useEffect(() => window.studio.onApproval(request => setPendingApproval(request)), []);
   useEffect(() => {
     void window.studio.readSetting('modelProvider').then(v=>{if(v==='openrouter'||v==='gemini')setProvider(v);else void window.studio.saveSetting('modelProvider','gemini');});
-    void window.studio.readSetting('geminiModel').then(v=>{const next=!v||v==='gemini-2.5-flash'||v==='models/gemini-2.5-flash'?'gemini-3.8-flash':v.replace(/^models\\//,'');setGeminiModel(next);if(next!==v)void window.studio.saveSetting('geminiModel',next);});
+    void window.studio.readSetting('geminiModel').then(v=>{const next=!v||v==='gemini-2.5-flash'||v==='models/gemini-2.5-flash'?'gemini-3.8-flash':v.replace(/^models\//,'');setGeminiModel(next);if(next!==v)void window.studio.saveSetting('geminiModel',next);});
     void window.studio.readSetting('defaultModel').then(v => { if(v) set({model:v}); });
     void window.studio.readSetting('approvalMode').then(v => { if(v) setApproval(v); });
     void window.studio.readSetting('autoFallback').then(v => { if(v !== null) setAutoFallback(v !== 'false'); });
