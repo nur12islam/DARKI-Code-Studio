@@ -11,6 +11,6 @@ type StudioState = {
   set: (partial: Partial<StudioState>) => void;
 };
 export const useStudio = create<StudioState>((set) => ({
-  root: null, activeFile: null, fileContent: '', dirty: false, model: 'gemini-2.5-flash', messages: [],
+  root: null, activeFile: null, fileContent: '', dirty: false, model: 'gemini-3.8-flash', messages: [],
   set: (partial) => set(partial)
 }));
