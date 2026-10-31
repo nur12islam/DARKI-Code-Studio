@@ -7,6 +7,11 @@ import simpleGit from 'simple-git';
 let mainWindow: BrowserWindow | null = null;
 const settingsPath = () => path.join(app.getPath('userData'), 'settings.json');
 const settings: Record<string, string> = {};
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+function normalizeGeminiModel(model: string) {
+  const normalized = String(model || '').trim().replace(/^models\//, '');
+  return !normalized || normalized === 'gemini-2.5-flash' ? DEFAULT_GEMINI_MODEL : normalized;
+}
 const pendingApprovals = new Map<string, (approved: boolean) => void>();
 let approvalSeq = 0;
 const aiUndoStack: Array<{root:string;path:string;before:string|null;after:string}> = [];
@@ -239,7 +244,7 @@ app.whenReady().then(async () => {
       const r=await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models',{headers:{Authorization:'Bearer '+key}});
       if(!r.ok) throw new Error('Gemini models request failed: '+r.status);
       const d=await r.json() as {data?:Array<{id:string;name?:string}>};
-      return (d.data||[]).filter(m=>m.id.startsWith('gemini-')).map(m=>({id:m.id,name:m.name||m.id,isFree:false}));
+      return (d.data||[]).filter(m=>m.id.replace(/^models\//,'').startsWith('gemini-')).map(m=>{const id=normalizeGeminiModel(m.id);return {id,name:m.name||id,isFree:false};}).sort((a,b)=>Number(b.id===DEFAULT_GEMINI_MODEL)-Number(a.id===DEFAULT_GEMINI_MODEL));
     }
     const key = settings.openrouterKey;
     const r = await fetch('https://openrouter.ai/api/v1/models', {headers:key?{Authorization:'Bearer '+key}:{}});
@@ -254,7 +259,7 @@ app.whenReady().then(async () => {
     assertProject(req.root);
     const messages: Array<Record<string, unknown>> = req.messages.map(m=>({role:m.role,content:m.content}));
     const call = async () => {
-      const r=await fetch(provider==='gemini'?'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions':'https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',...(provider==='openrouter'?{'HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'}:{})},body:JSON.stringify({model:req.model,...(provider==='openrouter'&&req.autoFallback!==false&&req.fallbackModels?.length?{models:[...new Set(req.fallbackModels.filter(m=>m&&m!==req.model))]}:{}),messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto',stream:true})});
+      const r=await fetch(provider==='gemini'?'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions':'https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',...(provider==='openrouter'?{'HTTP-Referer':'https://darki.online','X-Title':'DARKI Code Studio'}:{})},body:JSON.stringify({model:provider==='gemini'?normalizeGeminiModel(req.model):req.model,...(provider==='openrouter'&&req.autoFallback!==false&&req.fallbackModels?.length?{models:[...new Set(req.fallbackModels.filter(m=>m&&m!==req.model))]}:{}),messages,temperature:req.temperature??0.2,tools:toolSpecs,tool_choice:'auto',stream:true})});
       if(!r.ok) throw new Error(provider+' request failed ('+r.status+'): '+(await r.text()).slice(0,400));
       if(!r.body) throw new Error('Streaming response body unavailable.');
       const reader=r.body.getReader(); const decoder=new TextDecoder(); let buffer=''; let content=''; let finishReason:string|undefined;
@@ -308,7 +313,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('settings:save', async (_e,key:string,value:string) => {
     if(!['openrouterKey','geminiKey','githubToken','defaultModel','approvalMode','autoFallback','fallbackModels','modelProvider','geminiModel'].includes(key)) throw new Error('Unsupported setting.');
-    settings[key]=value; await persistSettings();
+    settings[key]=key==='geminiModel'?normalizeGeminiModel(value):value; await persistSettings();
   });
   ipcMain.handle('settings:read', async (_e,key:string) => ['openrouterKey','geminiKey','githubToken'].includes(key)?null:(settings[key]||null));
   ipcMain.handle('github:action', async (_e, action:string, args:Record<string,string>) => {
