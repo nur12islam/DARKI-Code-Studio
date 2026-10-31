@@ -1,12 +1,12 @@
 # DARKI Code Studio
 
-A Windows-first desktop AI coding workspace built with Electron, React, TypeScript, Vite, Tailwind CSS, Monaco Editor, Zustand, simple-git and OpenRouter.
+A Windows-first desktop AI coding workspace built with Electron, React, TypeScript, Vite, Monaco Editor, Zustand, simple-git and Google Gemini (default) with optional OpenRouter.
 
 ## Implemented in this development pass
 
 - Secure Electron shell: context isolation, disabled renderer Node integration and typed preload IPC.
-- Project folder selection, file tree, create/rename/delete, Monaco editing, Ctrl+S and file filtering.
-- OpenRouter model discovery, streamed chat responses, a free-only model filter, and configurable model-level fallback routing (defaults to `openrouter/free`).
+- New project scaffolding (React + TypeScript + Vite), project folder selection, file tree, create/rename/delete, Monaco editing, Ctrl+S and file filtering.
+- Direct Gemini API integration using Google's OpenAI-compatible endpoint, model discovery, streamed chat and function calling; Gemini is the default provider/model. Optional OpenRouter support includes model discovery, a free-only filter, and configurable fallback routing (defaults to `openrouter/free`).
 - Agent function/tool calling: list/read/write/delete files, run PowerShell commands, Git status/commit/push and preview guidance.
 - Allow/Deny approval cards for file changes, deletion, commands, Git commits, pushes, branch changes, pull and repository creation.
 - Code block Copy and Apply to file actions; applying code is approval-gated.
