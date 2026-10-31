@@ -11,6 +11,6 @@ type StudioState = {
   set: (partial: Partial<StudioState>) => void;
 };
 export const useStudio = create<StudioState>((set) => ({
-  root: null, activeFile: null, fileContent: '', dirty: false, model: 'openai/gpt-4o-mini', messages: [],
+  root: null, activeFile: null, fileContent: '', dirty: false, model: 'gemini-2.5-flash', messages: [],
   set: (partial) => set(partial)
 }));
