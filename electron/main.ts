@@ -182,6 +182,25 @@ app.whenReady().then(async () => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   ipcMain.handle('approval:respond', (_e, id: string, approved: boolean) => { const resolve = pendingApprovals.get(id); if (!resolve) return false; pendingApprovals.delete(id); resolve(Boolean(approved)); return true; });
   ipcMain.handle('project:open', async () => { const r = await dialog.showOpenDialog({properties:['openDirectory','createDirectory']}); return r.canceled ? null : r.filePaths[0]; });
+  ipcMain.handle('project:create', async (_e, parent:string, name:string) => {
+    assertProject(parent);
+    const clean=String(name||'').trim();
+    if(!clean || clean==='.' || clean==='..' || /[<>:"/\\\\|?*]/.test(clean) || /[. ]$/.test(clean)) throw new Error('Enter a valid project folder name.');
+    const target=path.resolve(parent,clean);
+    if(path.dirname(target)!==path.resolve(parent)) throw new Error('Project must be created directly inside the selected parent folder.');
+    await fs.mkdir(target,{recursive:false});
+    const files:Record<string,string>={
+      'package.json':JSON.stringify({name:clean.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'')||'darki-project',version:'1.0.0',private:true,type:'module',scripts:{dev:'vite --host 127.0.0.1',build:'vite build',preview:'vite preview --host 127.0.0.1'},dependencies:{'@vitejs/plugin-react':'latest',vite:'latest',typescript:'latest',react:'latest','react-dom':'latest'},devDependencies:{}},null,2)+'\\n',
+      'index.html':'<!doctype html>\\n<html lang="en">\\n  <head>\\n    <meta charset="UTF-8" />\\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\\n    <meta name="theme-color" content="#09090b" />\\n    <title>'+clean.replace(/[&<>"]/g,'')+'</title>\\n  </head>\\n  <body>\\n    <div id="root"></div>\\n    <script type="module" src="/src/main.tsx"></script>\\n  </body>\\n</html>\\n',
+      'src/main.tsx':"import React from 'react';\\nimport { createRoot } from 'react-dom/client';\\nimport App from './App';\\nimport './style.css';\\n\\ncreateRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);\\n",
+      'src/App.tsx':"export default function App() {\\n  return (\\n    <main className=\"page\">\\n      <span className=\"eyebrow\">YOUR NEXT IDEA STARTS HERE</span>\\n      <h1>Build something <span>extraordinary.</span></h1>\\n      <p>Your new project is ready. Edit <code>src/App.tsx</code> and start creating.</p>\\n    </main>\\n  );\\n}\\n",
+      'src/style.css':":root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#f4f4f5;background:#09090b;font-synthesis:none;text-rendering:optimizeLegibility}*{box-sizing:border-box}body{margin:0;min-width:320px;min-height:100vh}.page{max-width:900px;margin:18vh auto;padding:32px}.eyebrow{font-size:12px;letter-spacing:.18em;color:#a1a1aa}.page h1{font-size:clamp(40px,7vw,76px);line-height:1.04;letter-spacing:-.06em}.page h1 span{color:#fb7185}.page p{color:#a1a1aa;line-height:1.8}.page code{color:#fda4af;background:#27272a;padding:3px 7px;border-radius:5px}\\n",
+      'tsconfig.json':JSON.stringify({compilerOptions:{target:'ES2020',useDefineForClassFields:true,lib:['ES2020','DOM','DOM.Iterable'],allowJs:false,skipLibCheck:true,esModuleInterop:true,allowSyntheticDefaultImports:true,strict:true,forceConsistentCasingInFileNames:true,module:'ESNext',moduleResolution:'Bundler',resolveJsonModule:true,isolatedModules:true,noEmit:true,jsx:'react-jsx'},include:['src']},null,2)+'\\n',
+      'vite.config.ts':"import { defineConfig } from 'vite';\\nimport react from '@vitejs/plugin-react';\\nexport default defineConfig({ plugins: [react()] });\\n"
+    };
+    for(const [rel,content] of Object.entries(files)){const file=path.join(target,rel);await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,content,'utf8');}
+    return target;
+  });
   ipcMain.handle('fs:list', async (_e, root: string) => { assertProject(root); return walk(root); });
   ipcMain.handle('fs:read', async (_e, root: string, rel: string) => readProjectFile(root, rel));
   ipcMain.handle('fs:create', async (_e, root:string, rel:string, type:'file'|'directory') => {
