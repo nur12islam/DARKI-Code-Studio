@@ -182,6 +182,7 @@ app.whenReady().then(async () => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   ipcMain.handle('approval:respond', (_e, id: string, approved: boolean) => { const resolve = pendingApprovals.get(id); if (!resolve) return false; pendingApprovals.delete(id); resolve(Boolean(approved)); return true; });
   ipcMain.handle('project:open', async () => { const r = await dialog.showOpenDialog({properties:['openDirectory','createDirectory']}); return r.canceled ? null : r.filePaths[0]; });
+  ipcMain.handle('project:parent', async () => { const r = await dialog.showOpenDialog({title:'Choose where to create your new project',buttonLabel:'Choose parent folder',properties:['openDirectory','createDirectory']}); return r.canceled ? null : r.filePaths[0]; });
   ipcMain.handle('project:create', async (_e, parent:string, name:string) => {
     assertProject(parent);
     const clean=String(name||'').trim();
