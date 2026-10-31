@@ -186,7 +186,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('project:create', async (_e, parent:string, name:string) => {
     assertProject(parent);
     const clean=String(name||'').trim();
-    if(!clean || clean==='.' || clean==='..' || (/[<>:"|?*]/.test(clean) || clean.includes('/') || clean.includes('\\\\')) || /[. ]$/.test(clean)) throw new Error('Enter a valid project folder name.');
+    if(!clean || clean==='.' || clean==='..' || (/[<>:"|?*]/.test(clean) || clean.includes('/') || clean.includes('\\')) || /[. ]$/.test(clean)) throw new Error('Enter a valid project folder name.');
     const target=path.resolve(parent,clean);
     if(path.dirname(target)!==path.resolve(parent)) throw new Error('Project must be created directly inside the selected parent folder.');
     await fs.mkdir(target,{recursive:false});
