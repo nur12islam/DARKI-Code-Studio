@@ -2,6 +2,7 @@
   "name": "darki-code-studio",
   "version": "0.1.0",
   "private": true,
+  "author": "nurislam (darki)",
   "description": "A desktop AI coding workspace powered by OpenRouter",
   "main": "dist-electron/main.js",
   "scripts": {
