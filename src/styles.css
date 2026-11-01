@@ -20,3 +20,27 @@
 .explorer-tools{display:inline-flex;align-items:center;gap:3px}.explorer-tools button{display:inline-grid;place-items:center;width:22px;height:22px;border:0;background:transparent;border-radius:5px;color:#64748b}.explorer-tools button:hover{background:#334155;color:#bae6fd}.danger-button{color:#fca5a5!important}.danger-button:hover{background:#431407!important;border-color:#9a3412!important}
 
 .markdown-code{margin:12px 0;border:1px solid #334155;border-radius:9px;overflow:hidden;background:#080f1d}.markdown-code-head{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#162238;border-bottom:1px solid #334155;color:#94a3b8;font:10px 'DM Mono',monospace;text-transform:uppercase}.markdown-code-head div{display:flex;gap:6px}.markdown-code-head button{border:1px solid #475569;border-radius:5px;background:#1e293b;padding:4px 8px;font:10px Inter,sans-serif;color:#cbd5e1}.markdown-code-head button:hover:not(:disabled){border-color:#38bdf8;color:#bae6fd}.markdown-code-head button:disabled{opacity:.4;cursor:not-allowed}.markdown-code pre{margin:0;padding:12px;overflow:auto;max-height:420px;font:12px/1.65 'DM Mono',Consolas,monospace}.message-body>pre{overflow:auto}
+
+/* GitHub-style File Creator */
+.file-creator-modal{width:min(620px,100%);background:#111c30;border:1px solid #334155;border-radius:16px;padding:22px;box-shadow:0 30px 90px #000b;animation:modal-in .18s ease-out}
+.preset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(85px,1fr));gap:8px;margin:14px 0 16px}
+.preset-chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 6px;border:1px solid #334155;border-radius:10px;background:#0f172a;color:#cbd5e1;font-size:11px;font-weight:600;transition:all .15s ease}
+.preset-chip:hover{border-color:#38bdf8;background:#172a41;color:#f0f9ff;transform:translateY(-1px)}
+.preset-chip.active{border-color:#38bdf8;background:#034268;color:#7dd3fc;box-shadow:0 0 15px rgba(56,189,248,0.2)}
+.preset-chip span{font-size:16px}
+.preset-chip small{font-size:9px;color:#94a3b8;font-weight:400}
+.github-path-bar{display:flex;align-items:center;background:#0b1220;border:1px solid #334155;border-radius:8px;padding:4px 10px;margin-top:8px}
+.github-path-prefix{color:#64748b;font-size:11px;font-family:'DM Mono',monospace;margin-right:6px}
+.github-path-input{flex:1;background:transparent;border:0;outline:0;color:#f1f5f9;font:12px 'DM Mono',monospace;padding:6px 0}
+.template-preview-box{margin-top:14px;border:1px solid #263449;border-radius:8px;background:#080f1d;overflow:hidden}
+.template-preview-head{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:#162238;font-size:10px;color:#94a3b8;font-family:'DM Mono',monospace}
+.template-preview-box pre{margin:0;padding:12px;max-height:160px;overflow:auto;font:11px/1.6 'DM Mono',monospace;color:#7dd3fc}
+.template-check{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:#94a3b8;cursor:pointer}
+.template-check input{cursor:pointer}
+
+/* Live Preview Enhancements */
+.preview-mode-pill{border:1px solid #334155;border-radius:6px;background:#1e293b;padding:4px 8px;font-size:10px;color:#94a3b8}
+.preview-mode-pill.active{background:#0369a1;color:#f0f9ff;border-color:#38bdf8}
+.preview-status-text{font-size:10px;color:#94a3b8;font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.vibe-badge{display:inline-flex;align-items:center;gap:4px;background:#0284c7;color:#f0f9ff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:1px}
+

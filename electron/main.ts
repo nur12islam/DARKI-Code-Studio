@@ -94,7 +94,7 @@ async function walk(root: string, current = ''): Promise<Array<{ name: string; p
     if (['node_modules', '.git', 'dist', 'release', '.next'].includes(entry.name)) continue;
     const rel = path.posix.join(current.replace(/\\\\/g, '/'), entry.name);
     result.push({ name: entry.name, path: rel, type: entry.isDirectory() ? 'directory' : 'file' });
-    if (entry.isDirectory() && current.split('/').length < 4) result.push(...await walk(root, rel));
+    if (entry.isDirectory() && current.split('/').length < 7) result.push(...await walk(root, rel));
   }
   return result;
 }
@@ -174,7 +174,7 @@ async function executeTool(root: string, name: string, args: Record<string, unkn
     const git = simpleGit(root); const status = await git.status(); const branch = await git.branch();
     if (status.files.length) return 'Push blocked: commit or stash working tree changes first.';
     if (!await approve({ title: 'Approve Git push', detail: 'Branch: ' + branch.current + '\nRemote: configured Git remote\nThis publishes committed changes.', kind: 'git' })) return 'DENIED by user.';
-    await git.push(); return 'Push completed.';
+    const token=settings.githubToken; if(token){try{const remotes=await git.getRemotes(true);const origin=remotes.find(r=>r.name==='origin');if(origin?.refs?.push?.startsWith('https://github.com/')){const p=origin.refs.push.replace(/^https:\/\/(.*@)?github\.com\//,'');await git.push('https://'+encodeURIComponent(token)+'@github.com/'+p,branch.current);return 'Push completed to GitHub with saved token.';}}catch{/* fallback to system push */}} await git.push(); return 'Push completed.';
   }
   if (name === 'open_preview') {
     try { const pkg = JSON.parse(await fs.readFile(path.join(root,'package.json'),'utf8')) as {scripts?:Record<string,string>}; return pkg.scripts?.dev ? 'Likely preview URL: http://localhost:5173. Start the dev server only after asking the user to approve the command.' : 'No package.json dev script detected.'; } catch { return 'No package.json found. For static HTML, open the HTML file in the preview panel.'; }
@@ -209,7 +209,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('fs:list', async (_e, root: string) => { assertProject(root); return walk(root); });
   ipcMain.handle('fs:read', async (_e, root: string, rel: string) => readProjectFile(root, rel));
-  ipcMain.handle('fs:create', async (_e, root:string, rel:string, type:'file'|'directory') => {
+  ipcMain.handle('fs:create', async (_e, root:string, rel:string, type:'file'|'directory', content?: string) => {
     assertProject(root); const target=await assertSafePath(root,rel);
     if (!rel || rel.split(/[\\\\/]/).some(part=>part==='..')) throw new Error('Invalid project-relative path.');
     if (type==='directory') {
@@ -217,7 +217,7 @@ app.whenReady().then(async () => {
       await fs.mkdir(target,{recursive:false}); return;
     }
     if (!await approve({title:'Create file?',detail:rel,kind:'write'})) throw new Error('Creation denied.');
-    await fs.mkdir(path.dirname(target),{recursive:true}); const handle=await fs.open(target,'wx'); await handle.close();
+    await fs.mkdir(path.dirname(target),{recursive:true}); if(typeof content==='string'){await fs.writeFile(target,content,'utf8');}else{const handle=await fs.open(target,'wx'); await handle.close();}
   });
   ipcMain.handle('fs:delete', async (_e,root:string,rel:string) => {
     assertProject(root); const target=await assertSafePath(root,rel); const stat=await fs.lstat(target);
@@ -244,7 +244,19 @@ app.whenReady().then(async () => {
       const r=await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models',{headers:{Authorization:'Bearer '+key}});
       if(!r.ok) throw new Error('Gemini models request failed: '+r.status);
       const d=await r.json() as {data?:Array<{id:string;name?:string}>};
-      return (d.data||[]).filter(m=>m.id.replace(/^models\//,'').startsWith('gemini-')).map(m=>{const id=normalizeGeminiModel(m.id);return {id,name:m.name||id,isFree:false};}).sort((a,b)=>Number(b.id===DEFAULT_GEMINI_MODEL)-Number(a.id===DEFAULT_GEMINI_MODEL));
+      const rawList = (d.data||[]).filter(m=>m.id.replace(/^models\//,'').startsWith('gemini-')).map(m=>{const id=normalizeGeminiModel(m.id);return {id,name:m.name||id,isFree:false};});
+      const seen = new Set<string>();
+      const list: Array<{id:string;name:string;isFree:boolean}> = [];
+      for (const item of rawList) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          list.push(item);
+        }
+      }
+      if (!seen.has(DEFAULT_GEMINI_MODEL)) {
+        list.unshift({id:DEFAULT_GEMINI_MODEL,name:DEFAULT_GEMINI_MODEL,isFree:false});
+      }
+      return list.sort((a,b)=>Number(b.id===DEFAULT_GEMINI_MODEL)-Number(a.id===DEFAULT_GEMINI_MODEL));
     }
     const key = settings.openrouterKey;
     const r = await fetch('https://openrouter.ai/api/v1/models', {headers:key?{Authorization:'Bearer '+key}:{}});
@@ -291,7 +303,11 @@ app.whenReady().then(async () => {
         for(const line of lines)consume(line);
       }
       if(buffer)consume(buffer);
-      const toolCalls=Object.keys(calls).map(Number).sort((a,b)=>a-b).map(i=>calls[i]);
+      const toolCalls=Object.keys(calls).map(Number).sort((a,b)=>a-b).map(i=>{
+        const c=calls[i];
+        if(!c.id) c.id='call_'+Math.random().toString(36).slice(2);
+        return c;
+      });
       return {choices:[{message:{role:'assistant',content:content||null,tool_calls:toolCalls.length?toolCalls:undefined},finish_reason:finishReason}]};
     };
     for(let turn=0;turn<12;turn++){
@@ -374,7 +390,7 @@ app.whenReady().then(async () => {
     assertProject(root); const git=simpleGit(root); const status=await git.status(); const branch=await git.branch();
     if(status.files.length) throw new Error('Commit your changes before pushing.');
     if(!await approve({title:'Approve Git push',detail:'Branch: '+branch.current+'\nPush committed changes to configured remote?',kind:'git'})) throw new Error('Push denied.');
-    await git.push(); return 'Push completed.';
+    const token=settings.githubToken; if(token){try{const remotes=await git.getRemotes(true);const origin=remotes.find(r=>r.name==='origin');if(origin?.refs?.push?.startsWith('https://github.com/')){const p=origin.refs.push.replace(/^https:\/\/(.*@)?github\.com\//,'');await git.push('https://'+encodeURIComponent(token)+'@github.com/'+p,branch.current);return 'Push completed to GitHub with saved token.';}}catch{/* fallback to system push */}} await git.push(); return 'Push completed.';
   });
   ipcMain.handle('preview:url', async (_e,root:string) => { assertProject(root); try { const pkg=JSON.parse(await fs.readFile(path.join(root,'package.json'),'utf8')) as {scripts?:Record<string,string>}; return pkg.scripts?.dev?'http://localhost:5173':null; } catch { return null; } });
   ipcMain.handle('command:run', async (_e,root:string,command:string) => {

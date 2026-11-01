@@ -9,7 +9,7 @@ const api = {
  listFiles:(root:string)=>ipcRenderer.invoke('fs:list',root) as Promise<TreeEntry[]>,
  readFile:(root:string,relativePath:string)=>ipcRenderer.invoke('fs:read',root,relativePath) as Promise<string>,
  writeFile:(root:string,relativePath:string,content:string)=>ipcRenderer.invoke('fs:write',root,relativePath,content) as Promise<void>,
- createItem:(root:string,relativePath:string,type:'file'|'directory')=>ipcRenderer.invoke('fs:create',root,relativePath,type) as Promise<void>,
+ createItem:(root:string,relativePath:string,type:'file'|'directory',content?:string)=>ipcRenderer.invoke('fs:create',root,relativePath,type,content) as Promise<void>,
  deleteItem:(root:string,relativePath:string)=>ipcRenderer.invoke('fs:delete',root,relativePath) as Promise<void>,
  renameItem:(root:string,from:string,to:string)=>ipcRenderer.invoke('fs:rename',root,from,to) as Promise<void>,
  models:(provider:'openrouter'|'gemini'='openrouter')=>ipcRenderer.invoke('openrouter:models',provider) as Promise<Array<{id:string;name:string;context_length?:number;isFree?:boolean}>>,

@@ -9,7 +9,7 @@ declare global {
    listFiles(root:string):Promise<StudioTreeEntry[]>;
    readFile(root:string,path:string):Promise<string>;
    writeFile(root:string,path:string,content:string):Promise<void>;
-   createItem(root:string,path:string,type:'file'|'directory'):Promise<void>;
+   createItem(root:string,path:string,type:'file'|'directory',content?:string):Promise<void>;
    deleteItem(root:string,path:string):Promise<void>;
    renameItem(root:string,from:string,to:string):Promise<void>;
    models(provider?:'openrouter'|'gemini'):Promise<Array<{id:string;name:string;context_length?:number;isFree?:boolean}>>;

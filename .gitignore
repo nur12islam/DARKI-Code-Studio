@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+# Production build outputs
+dist/
+dist-electron/
+release/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS artifacts
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
